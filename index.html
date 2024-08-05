@@ -3,76 +3,159 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Çevrimiçi Sohbet</title>
+    <title>Süper Çevrimiçi Sohbet</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
     <style>
+        :root {
+            --primary-color: #4a90e2;
+            --secondary-color: #f3f3f3;
+            --text-color: #333;
+            --sent-message-bg: #dcf8c6;
+            --received-message-bg: #fff;
+        }
         body, html {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 0;
             height: 100%;
+            background-color: #e5ddd5;
+            color: var(--text-color);
         }
         .chat-container {
             display: flex;
             flex-direction: column;
             height: 100%;
-            max-width: 600px;
+            max-width: 800px;
             margin: 0 auto;
-            border: 1px solid #ccc;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            background-color: white;
         }
         .chat-header {
-            background-color: #4CAF50;
+            background-color: var(--primary-color);
             color: white;
+            padding: 15px;
             text-align: center;
-            padding: 10px;
+            font-size: 1.2em;
+            font-weight: bold;
         }
         .chat-messages {
             flex: 1;
             overflow-y: auto;
-            padding: 10px;
-            background-color: #f1f1f1;
+            padding: 20px;
+            background-color: var(--secondary-color);
         }
         .message {
-            background-color: white;
-            border-radius: 5px;
-            padding: 10px;
-            margin-bottom: 10px;
             max-width: 80%;
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 20px;
+            position: relative;
+            color: var(--text-color);
+            word-wrap: break-word;
+        }
+        .message::before {
+            content: "";
+            position: absolute;
+            bottom: 3px;
+            width: 12px;
+            height: 19px;
         }
         .message.sent {
             align-self: flex-end;
-            background-color: #DCF8C6;
+            background-color: var(--sent-message-bg);
+            margin-left: 20%;
+        }
+        .message.sent::before {
+            right: -11px;
+            background-color: var(--sent-message-bg);
+            border-bottom-left-radius: 16px 14px;
+        }
+        .message.received {
+            align-self: flex-start;
+            background-color: var(--received-message-bg);
+            margin-right: 20%;
+        }
+        .message.received::before {
+            left: -11px;
+            background-color: var(--received-message-bg);
+            border-bottom-right-radius: 16px 14px;
+        }
+        .message-info {
+            font-size: 0.75em;
+            color: #777;
+            text-align: right;
+            margin-top: 5px;
         }
         .chat-input {
             display: flex;
-            padding: 10px;
-            background-color: #f1f1f1;
+            padding: 15px;
+            background-color: white;
+            border-top: 1px solid #e0e0e0;
         }
         #messageInput {
             flex: 1;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            padding: 12px;
+            border: none;
+            border-radius: 25px;
+            background-color: var(--secondary-color);
+            font-size: 1em;
+        }
+        #messageInput:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px var(--primary-color);
         }
         #sendButton {
-            padding: 10px 20px;
-            background-color: #4CAF50;
+            background-color: var(--primary-color);
             color: white;
             border: none;
-            border-radius: 4px;
-            cursor: pointer;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
             margin-left: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #sendButton:hover {
+            background-color: #3a7bc8;
+        }
+        #sendButton i {
+            font-size: 1.2em;
+        }
+        #userList {
+            padding: 10px 15px;
+            background-color: #f9f9f9;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .typing-indicator {
+            color: #666;
+            font-style: italic;
+            padding: 5px 15px;
+            font-size: 0.9em;
+        }
+        @media (max-width: 600px) {
+            .chat-container {
+                height: 100%;
+                width: 100%;
+            }
+            .message {
+                max-width: 90%;
+            }
         }
     </style>
 </head>
 <body>
     <div class="chat-container">
         <div class="chat-header">
-            <h2>Çevrimiçi Sohbet</h2>
+            Süper Çevrimiçi Sohbet
         </div>
+        <div id="userList">Çevrimiçi Kullanıcılar: 1</div>
         <div class="chat-messages" id="messages"></div>
+        <div class="typing-indicator" id="typingIndicator"></div>
         <div class="chat-input">
             <input type="text" id="messageInput" placeholder="Mesajınızı yazın...">
-            <button id="sendButton">Gönder</button>
+            <button id="sendButton"><i class="fas fa-paper-plane"></i></button>
         </div>
     </div>
 
@@ -83,36 +166,113 @@
         const messagesDiv = document.getElementById('messages');
         const messageInput = document.getElementById('messageInput');
         const sendButton = document.getElementById('sendButton');
+        const userListDiv = document.getElementById('userList');
+        const typingIndicator = document.getElementById('typingIndicator');
+
+        let members = [];
+        let username = prompt("Lütfen kullanıcı adınızı girin:") || "Anonim";
 
         drone.on('open', error => {
             if (error) {
                 return console.error(error);
             }
+            console.log("Bağlantı başarılı!");
             const room = drone.subscribe('observable-room');
-            room.on('data', addMessage);
+
+            room.on('open', error => {
+                if (error) {
+                    return console.error(error);
+                }
+                console.log("Odaya bağlanıldı!");
+            });
+
+            room.on('data', addMessageToDiscussion);
+
+            room.on('members', m => {
+                members = m;
+                updateMembersCount();
+            });
+
+            room.on('member_join', member => {
+                members.push(member);
+                updateMembersCount();
+            });
+
+            room.on('member_leave', ({id}) => {
+                const index = members.findIndex(member => member.id === id);
+                members.splice(index, 1);
+                updateMembersCount();
+            });
         });
 
+        function updateMembersCount() {
+            userListDiv.textContent = `Çevrimiçi Kullanıcılar: ${members.length}`;
+        }
+
         function sendMessage() {
-            const message = messageInput.value;
+            const message = messageInput.value.trim();
             if (message) {
                 drone.publish({
                     room: 'observable-room',
-                    message
+                    message: {
+                        text: message,
+                        username: username,
+                        timestamp: new Date().getTime()
+                    }
                 });
                 messageInput.value = '';
             }
         }
 
-        function addMessage(message) {
+        function addMessageToDiscussion(message) {
             const messageElement = document.createElement('div');
             messageElement.classList.add('message');
-            if (message.clientId === drone.clientId) {
-                messageElement.classList.add('sent');
-            }
-            messageElement.textContent = message.data;
+            
+            const isCurrentUser = message.clientId === drone.clientId;
+            messageElement.classList.add(isCurrentUser ? 'sent' : 'received');
+            
+            const messageText = document.createElement('div');
+            messageText.textContent = message.data.text;
+            messageElement.appendChild(messageText);
+            
+            const messageInfo = document.createElement('div');
+            messageInfo.classList.add('message-info');
+            messageInfo.textContent = `${message.data.username} • ${formatTimestamp(message.data.timestamp)}`;
+            messageElement.appendChild(messageInfo);
+            
             messagesDiv.appendChild(messageElement);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
+
+        function formatTimestamp(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        let typingTimeout;
+        messageInput.addEventListener('input', () => {
+            clearTimeout(typingTimeout);
+            drone.publish({
+                room: 'observable-room',
+                message: { typing: true, username: username }
+            });
+            typingTimeout = setTimeout(() => {
+                drone.publish({
+                    room: 'observable-room',
+                    message: { typing: false, username: username }
+                });
+            }, 1000);
+        });
+
+        drone.on('data', message => {
+            if (message.data.typing !== undefined) {
+                if (message.data.typing && message.clientId !== drone.clientId) {
+                    typingIndicator.textContent = `${message.data.username} yazıyor...`;
+                } else {
+                    typingIndicator.textContent = '';
+                }
+            }
+        });
 
         sendButton.addEventListener('click', sendMessage);
         messageInput.addEventListener('keypress', (e) => {
